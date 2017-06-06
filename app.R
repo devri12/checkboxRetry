@@ -210,6 +210,10 @@ SO4.flowyear.1 <- group_by(w1_chem, year) %>%
   as.data.frame
 #combine sulfate flow and precip year
 SO4data.1 <- merge(SO4.precipyear.1, SO4.flowyear.1, by = "year")
+#change back to y/m/d format
+SO4data.1$year <- as.character(SO4data.1$year)
+SO4data.1['year'] <- apply(SO4data.1[, 'year', drop = F], 2, function(x){paste0(x, '/06/01')})
+as.Date(SO4data.1$year)
 
 ##Make nitrate portion of graph (preceip and flow - mueq/L vs Water Year)
 ######################WEIGHTED TOTAL
@@ -621,6 +625,16 @@ pH.flowyear.6 <- group_by(w6_chem, year) %>%
 pHdata.6 <- merge(pH.precipyear.6, pH.flowyear.6, by = "year")
 
 #possibly change all dates (Cadata, NO3data, SO4data, pHdata) to y/m/d format
+#ws2
+#change back to real date
+w2_chemre <- unite(w2_chem, date, year:day, sep = "/")
+as.Date(w2_chemre$date) %m+% months (5)
+#combine ionflow columns into one
+#w2_chemre <- w2_chemre %>%
+#  gather(ionflow, value, Ca.flow:SiO2.flow) %>%
+#  filter(value != "") %>%
+#  group_by(date) %>%
+#  summarise_each(funs(paste(unique(.), collapse = "\n")))
 
 
 #choose which variables to graph, with each tab a different watershed perhaps
@@ -635,7 +649,7 @@ ui <- fluidPage(
       tabsetPanel(
         tabPanel("Watershed 1",
                  h3("Calcium movement"),
-                 selectInput("ws1",
+                 selectInput("cws1",
                    label = "Choose an analyte",
                    choices = list("Calcium discharge" = "Ca.flow",
                                   "Calcium precipitation" = "Ca.precip")),
@@ -646,6 +660,10 @@ ui <- fluidPage(
                              value = c(as.Date("1963/06/01"), as.Date("2013/06/01"))),
                  plotOutput("c1"),
                  h3("Sulfate movement"),
+                 selectInput("sws1",
+                             label = "Choose an analyte",
+                             choices = list("Sulfate discharge" = "SO4.flow",
+                                            "Sulfate precipitation" = "SO4.precip")),
                  plotOutput("s1")
                  ),
         tabPanel("Watershed 2",
@@ -657,7 +675,7 @@ ui <- fluidPage(
                  plotOutput("c2")),
         tabPanel("Watershed 3",
                  checkboxGroupInput("ws3",
-                                    label = "Choose some compounds",
+                                    label = "Choose one compounds",
                                     selected = "Ca.flow",
                                     choices = list("Calcium discharge" = "Ca.flow",
                                                    "Calcium precipitation" = "Ca.precip")),
@@ -673,28 +691,34 @@ server <- function(input, output) {
   output$c1 <- renderPlot({
     #utilize slider to choose date range
     #plot the data interactively
-    ggplot(Cadata.1, aes(x = as.Date(year), y = get(input$ws1), col = input$ws1)) +
+    ggplot(Cadata.1, aes(x = as.Date(year), y = get(input$cws1), col = input$cws1)) +
       labs(colour = "Analytes", x = "Year", y = "ueq/L") +
       geom_point()+
       xlim(min(input$slide1[1]), max(input$slide1[2]))
   })
   output$s1 <- renderPlot({
-    ggplot(SO4data.1, aes(x = year, y = SO4.flow)) +
-      geom_smooth(se=F)
+    ggplot(SO4data.1, aes(x = as.Date(year), y = get(input$sws1), col = input$sws1)) +
+      geom_jitter()+
+      xlim(min(input$slide1[1]), max(input$slide1[2]))
   })
+#  output$all2 <- renderPlot({
+ #   ggplot(w2_chemre, aes(x = date, y = compounds)) +
+  #    geom_tile()
+#  })
   output$c2 <- renderPlot({
     ggplot(Cadata.2, aes(x = year, y = get(input$ws2), col = input$ws2)) +
       labs(colour = "Ion", x = "Year", y = "ueq/L") +
       geom_point()
   })
   output$c3 <- renderPlot({
-    ggplot(Cadata.3, aes(x = year, col = input$ws3)) +
+    ggplot(Cadata.3, aes(x = year, y = get(input$ws3), col = input$ws3)) +
       labs(colour = "Ion", x = "Year", y = "ueq/L") +
-      geom_point(aes(y = get(input$ws3[1]))) +
-      geom_point(aes(y = get(input$ws3[2])))
+      geom_point()
+#      geom_point(aes(y = get(input$ws3[1]))) +
+#      geom_point(aes(y = get(input$ws3[2])))
   })
   output$c4 <- renderPlot({
-    c4 <- ggplot(Cadata.4, aes(x = Ca.flow, y = Ca.precip, col = year)) +
+    c4 <- ggplot(Cadata.4, aes(x = year, y = Ca.precip, col = Ca.precip)) +
       geom_point()
     ggplotly(c4)
   })
